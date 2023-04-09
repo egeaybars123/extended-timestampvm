@@ -223,6 +223,7 @@ func (vm *VM) BuildBlock(ctx context.Context) (snowman.Block, error) {
 	}
 
 	// Get the value to put in the new block
+	//TODO: Add signature
 	value := vm.mempool[0]
 	vm.mempool = vm.mempool[1:]
 
@@ -323,6 +324,7 @@ func (vm *VM) ParseBlock(ctx context.Context, bytes []byte) (snowman.Block, erro
 // - the block's parent is [parentID]
 // - the block's data is [data]
 // - the block's timestamp is [timestamp]
+// TODO: Add signature and sender common.Address
 func (vm *VM) NewBlock(parentID ids.ID, height uint64, data [DataLen]byte, timestamp time.Time) (*Block, error) {
 	block := &Block{
 		PrntID: parentID,

@@ -13,12 +13,14 @@ import (
 	"github.com/ava-labs/avalanchego/snow/choices"
 	"github.com/ava-labs/avalanchego/snow/consensus/snowman"
 	"github.com/ava-labs/avalanchego/utils/hashing"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 var (
 	errTimestampTooEarly = errors.New("block's timestamp is earlier than its parent's timestamp")
 	errDatabaseGet       = errors.New("error while retrieving data from database")
 	errTimestampTooLate  = errors.New("block's timestamp is more than 1 hour ahead of local time")
+	errSignatureNotTrue  = errors.New("signature is not true: not signed by the sender or wrong digest signed")
 
 	_ snowman.Block = &Block{}
 )
@@ -30,10 +32,12 @@ var (
 // 3) Timestamp
 // 4) A piece of data (a string)
 type Block struct {
-	PrntID ids.ID        `serialize:"true" json:"parentID"`  // parent's ID
-	Hght   uint64        `serialize:"true" json:"height"`    // This block's height. The genesis block is at height 0.
-	Tmstmp int64         `serialize:"true" json:"timestamp"` // Time this block was proposed at
-	Dt     [DataLen]byte `serialize:"true" json:"data"`      // Arbitrary data
+	PrntID    ids.ID         `serialize:"true" json:"parentID"`  // parent's ID
+	Hght      uint64         `serialize:"true" json:"height"`    // This block's height. The genesis block is at height 0.
+	Tmstmp    int64          `serialize:"true" json:"timestamp"` // Time this block was proposed at
+	Dt        [DataLen]byte  `serialize:"true" json:"data"`      // Arbitrary data
+	Signature []byte         `serialize:"true" json:"signature"` // Signature of the data
+	Sender    common.Address `serialize:"true" json:"sender"`    // Sender of the data
 
 	id     ids.ID         // hold this block's ID
 	bytes  []byte         // this block's encoded bytes
@@ -44,6 +48,7 @@ type Block struct {
 // Verify returns nil iff this block is valid.
 // To be valid, it must be that:
 // b.parent.Timestamp < b.Timestamp <= [local time] + 1 hour
+// ADDITION: signature must be true
 func (b *Block) Verify(ctx context.Context) error {
 	// Get [b]'s parent
 	parentID := b.Parent()
@@ -64,6 +69,12 @@ func (b *Block) Verify(ctx context.Context) error {
 	// Ensure [b]'s timestamp is after its parent's timestamp.
 	if b.Timestamp().Unix() < parent.Timestamp().Unix() {
 		return errTimestampTooEarly
+	}
+
+	//Check the validity of the signature.
+	sig, _ := ValidateSig(b.Dt[:], b.Signature, (b.Sender))
+	if !sig {
+		return errSignatureNotTrue
 	}
 
 	// Ensure [b]'s timestamp is not more than an hour
