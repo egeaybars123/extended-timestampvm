@@ -23,6 +23,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils"
 	"github.com/ava-labs/avalanchego/utils/json"
 	"github.com/ava-labs/avalanchego/version"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -62,7 +63,7 @@ type VM struct {
 	toEngine chan<- common.Message
 
 	// Proposed pieces of data that haven't been put into a block and proposed yet
-	mempool [][DataLen]byte
+	mempool [][DataLen + SigLen]byte
 
 	// Block ID --> Block
 	// Each element is a block that passed verification but
@@ -149,7 +150,7 @@ func (vm *VM) initGenesis(genesisData []byte) error {
 
 	// Create the genesis block
 	// Timestamp of genesis block is 0. It has no parent.
-	genesisBlock, err := vm.NewBlock(ids.Empty, 0, genesisDataArr, time.Unix(0, 0))
+	genesisBlock, err := vm.NewBlock(ids.Empty, 0, genesisDataArr, [64]byte{0, 0, 0, 0, 0, 0, 0}, ethcommon.HexToAddress("0x0"), time.Unix(0, 0))
 	if err != nil {
 		log.Error("error while creating genesis block: %v", err)
 		return err
@@ -225,8 +226,10 @@ func (vm *VM) BuildBlock(ctx context.Context) (snowman.Block, error) {
 
 	// Get the value to put in the new block
 	//TODO: Add signature
-	value := vm.mempool[0]
+	encoded := vm.mempool[0]
 	vm.mempool = vm.mempool[1:]
+
+	value, sig := DecodeMempool(encoded)
 
 	// Notify consensus engine that there are more pending data for blocks
 	// (if that is the case) when done building this block
@@ -242,7 +245,7 @@ func (vm *VM) BuildBlock(ctx context.Context) (snowman.Block, error) {
 	preferredHeight := preferredBlock.Height()
 
 	// Build the block with preferred height
-	newBlock, err := vm.NewBlock(vm.preferred, preferredHeight+1, value, time.Now())
+	newBlock, err := vm.NewBlock(vm.preferred, preferredHeight+1, value, sig, ethcommon.HexToAddress("0x0"), time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("couldn't build block: %w", err)
 	}
@@ -285,7 +288,9 @@ func (vm *VM) LastAccepted(ctx context.Context) (ids.ID, error) { return vm.stat
 // Then it notifies the consensus engine
 // that a new block is ready to be added to consensus
 // (namely, a block with data [data])
-func (vm *VM) proposeBlock(data [DataLen]byte) bool {
+
+// TODO: Add a function that will concatenate data and sig
+func (vm *VM) proposeBlock(data [DataLen + SigLen]byte) bool {
 	if len(vm.mempool) > MaxMempoolSize {
 		return false
 	}
@@ -326,12 +331,14 @@ func (vm *VM) ParseBlock(ctx context.Context, bytes []byte) (snowman.Block, erro
 // - the block's data is [data]
 // - the block's timestamp is [timestamp]
 // TODO: Add signature and sender common.Address
-func (vm *VM) NewBlock(parentID ids.ID, height uint64, data [DataLen]byte, timestamp time.Time) (*Block, error) {
+func (vm *VM) NewBlock(parentID ids.ID, height uint64, data [DataLen]byte, sig [SigLen]byte, reg ethcommon.Address, timestamp time.Time) (*Block, error) {
 	block := &Block{
 		PrntID: parentID,
 		Hght:   height,
 		Tmstmp: timestamp.Unix(),
 		Dt:     data,
+		Sig:    sig,
+		Reg:    reg,
 	}
 
 	// Get the byte representation of the block

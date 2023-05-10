@@ -28,3 +28,13 @@ func init() {
 		panic(err)
 	}
 }
+
+func DecodeMempool(data [DataLen + SigLen]byte) ([32]byte, [64]byte) {
+	var hash [32]byte
+	var sig [64]byte
+
+	copy(hash[:], data[:DataLen])
+	copy(sig[:], data[DataLen:DataLen+SigLen])
+
+	return hash, sig
+}
