@@ -12,6 +12,7 @@ import (
 	"github.com/ava-labs/avalanchego/snow"
 	"github.com/ava-labs/avalanchego/snow/engine/common"
 	"github.com/ava-labs/avalanchego/version"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,9 +40,12 @@ func TestGenesis(t *testing.T) {
 	genesisBlock, err := vm.getBlock(lastAccepted) // genesisBlock as snowman.Block
 	assert.NoError(err)
 
-	// Verify that the genesis block has the data we expect
+	// Verify that the genesis block has the data, signaure
+	// and registrant address we expect
 	assert.Equal(ids.Empty, genesisBlock.Parent())
 	assert.Equal([32]byte{0, 0, 0, 0, 0}, genesisBlock.Data())
+	assert.Equal([64]byte{0, 0, 0, 0, 0, 0}, genesisBlock.Signature())
+	assert.Equal(ethcommon.HexToAddress("0x0000000000000000000000000000000000000000"), genesisBlock.Reg)
 }
 
 func TestHappyPath(t *testing.T) {

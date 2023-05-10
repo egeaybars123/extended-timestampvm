@@ -32,12 +32,12 @@ var (
 // 3) Timestamp
 // 4) A piece of data (a string)
 type Block struct {
-	PrntID    ids.ID         `serialize:"true" json:"parentID"`  // parent's ID
-	Hght      uint64         `serialize:"true" json:"height"`    // This block's height. The genesis block is at height 0.
-	Tmstmp    int64          `serialize:"true" json:"timestamp"` // Time this block was proposed at
-	Dt        [DataLen]byte  `serialize:"true" json:"data"`      // Arbitrary data
-	Signature []byte         `serialize:"true" json:"signature"` // Signature of the data
-	Sender    common.Address `serialize:"true" json:"sender"`    // Sender of the data
+	PrntID ids.ID         `serialize:"true" json:"parentID"`   // parent's ID
+	Hght   uint64         `serialize:"true" json:"height"`     // This block's height. The genesis block is at height 0.
+	Tmstmp int64          `serialize:"true" json:"timestamp"`  // Time this block was proposed at
+	Dt     [DataLen]byte  `serialize:"true" json:"data"`       // Arbitrary data
+	Sig    [SigLen]byte   `serialize:"true" json:"signature"`  // Signature of the data
+	Reg    common.Address `serialize:"true" json:"registrant"` // Address that registers the data (registrant)
 
 	id     ids.ID         // hold this block's ID
 	bytes  []byte         // this block's encoded bytes
@@ -48,6 +48,7 @@ type Block struct {
 // Verify returns nil iff this block is valid.
 // To be valid, it must be that:
 // b.parent.Timestamp < b.Timestamp <= [local time] + 1 hour
+
 // ADDITION: signature must be true
 func (b *Block) Verify(ctx context.Context) error {
 	// Get [b]'s parent
@@ -72,10 +73,7 @@ func (b *Block) Verify(ctx context.Context) error {
 	}
 
 	//Check the validity of the signature.
-	sig, _ := ValidateSig(b.Dt[:], b.Signature, (b.Sender))
-	if !sig {
-		return errSignatureNotTrue
-	}
+	//TODO: Add verifySignature() function.
 
 	// Ensure [b]'s timestamp is not more than an hour
 	// ahead of this node's time
@@ -154,6 +152,12 @@ func (b *Block) Bytes() []byte { return b.bytes }
 
 // Data returns the data of this block
 func (b *Block) Data() [DataLen]byte { return b.Dt }
+
+// Signature returns the signature of the data
+func (b *Block) Signature() [SigLen]byte { return b.Sig }
+
+// The registrant address that registers the digest hash with cryptographic signature.
+func (b *Block) Registrant() common.Address { return b.Reg }
 
 // SetStatus sets the status of this block
 func (b *Block) SetStatus(status choices.Status) { b.status = status }

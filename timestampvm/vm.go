@@ -27,6 +27,7 @@ import (
 
 const (
 	DataLen        = 32
+	SigLen         = 64
 	Name           = "timestampvm"
 	MaxMempoolSize = 4096
 )
