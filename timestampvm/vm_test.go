@@ -5,6 +5,7 @@ package timestampvm
 
 import (
 	"context"
+	"encoding/hex"
 	"testing"
 
 	"github.com/ava-labs/avalanchego/database/manager"
@@ -17,6 +18,8 @@ import (
 )
 
 var blockchainID = ids.ID{1, 2, 3}
+var testDataSig = "6e8b0d92516ee4289145e3b78cea58daac177b1c618beeedbc6cdabd388a6e557f447712381a49554875df353b160858905e44c37e75dad168e1a4abf32dbf6869a2eaeaf042f001c36c43e01996486b91ed929dea0d2c68d8e1fc9d2559fabf"
+var testArray [96]byte
 
 // Assert that after initialization, the vm has the state we expect
 func TestGenesis(t *testing.T) {
@@ -64,8 +67,11 @@ func TestHappyPath(t *testing.T) {
 	// in an actual execution, the engine would set the preference
 	assert.NoError(vm.SetPreference(ctx, genesisBlock.ID()))
 
+	testSlice, _ := hex.DecodeString(testDataSig)
+	copy(testArray[:], testSlice)
+
 	snowCtx.Lock.Lock()
-	vm.proposeBlock([DataLen]byte{0, 0, 0, 0, 1}) // propose a value
+	vm.proposeBlock(testArray) // propose a value
 	snowCtx.Lock.Unlock()
 
 	select { // assert there is a pending tx message to the engine
@@ -97,7 +103,7 @@ func TestHappyPath(t *testing.T) {
 	assert.Equal(snowmanBlock2.ID(), block2.ID())
 	assert.NoError(block2.Verify(ctx))
 
-	vm.proposeBlock([DataLen]byte{0, 0, 0, 0, 2}) // propose a block
+	vm.proposeBlock(testArray) // propose a block
 	snowCtx.Lock.Unlock()
 
 	select { // verify there is a pending tx message to the engine

@@ -226,7 +226,7 @@ func (vm *VM) BuildBlock(ctx context.Context) (snowman.Block, error) {
 
 	// Get the value to put in the new block
 	//TODO: Add signature
-	encoded := vm.mempool[0]
+	encoded := vm.mempool[0] // Encoded = Hash + Signature
 	vm.mempool = vm.mempool[1:]
 
 	value, sig := DecodeMempool(encoded)
@@ -288,8 +288,6 @@ func (vm *VM) LastAccepted(ctx context.Context) (ids.ID, error) { return vm.stat
 // Then it notifies the consensus engine
 // that a new block is ready to be added to consensus
 // (namely, a block with data [data])
-
-// TODO: Add a function that will concatenate data and sig
 func (vm *VM) proposeBlock(data [DataLen + SigLen]byte) bool {
 	if len(vm.mempool) > MaxMempoolSize {
 		return false
